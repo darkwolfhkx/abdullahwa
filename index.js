@@ -1,7 +1,6 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
-const axios = require('axios');
 const fs = require('fs');
 
 // Clear old session
@@ -11,309 +10,135 @@ if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
 }
 
-// Mistral AI API Configuration
-const API_KEY = "fdqIlxit8LcF24wdGrhIHqGbtTJGYpGi";
-const BASE_URL = "https://api.mistral.ai/v1/chat/completions";
-const MODEL_NAME = "mistral-tiny";
-
-// Store conversations
-const userConversations = new Map();
-const userMessageCount = new Map(); // Track message count for first salam only
-
-// Baggify Product Database
-const PRODUCTS = {
-    "large bag": {
-        name: "Storage Bag Large",
-        size: "20x24x12 inches",
-        price: "Rs. 600",
-        originalPrice: "Rs. 1,200",
-        discount: "50% OFF",
-        description: "Best for storing clothes, bedding, and household items. Made with premium quality material.",
-        reviews: "76 reviews"
-    },
-    "xl bag": {
-        name: "Storage Bag Extra Large",
-        size: "27x24x14 inches",
-        price: "Rs. 750",
-        originalPrice: "Rs. 1,400",
-        discount: "46% OFF",
-        description: "Huge capacity! Perfect for winter clothes, comforters, and bulk storage.",
-        reviews: "168 reviews"
-    },
-    "medium bag": {
-        name: "Storage Bag Medium",
-        size: "17x20x10 inches",
-        price: "Rs. 500",
-        originalPrice: "Rs. 700",
-        discount: "29% OFF",
-        description: "Ideal size for daily use. Great for storing shoes, accessories, and small items.",
-        reviews: "59 reviews"
-    },
-    "shoulder bag": {
-        name: "Shoulder Bag",
-        size: "18x15 inches",
-        price: "Rs. 300",
-        originalPrice: "Rs. 500",
-        discount: "40% OFF",
-        description: "Stylish and practical! Best for presentations, business meetings, and everyday use.",
-        reviews: "45 reviews"
-    },
-    "prayer mat": {
-        name: "Travel Prayer Mat with Pouch",
-        size: "27x44 inches",
-        price: "Rs. 600",
-        originalPrice: "Rs. 1,400",
-        discount: "57% OFF",
-        description: "Premium quality travel prayer mat with matching pouch. Soft and lightweight.",
-        reviews: "89 reviews"
-    }
-};
-
-// Delivery Information
-const DELIVERY_INFO = {
-    charges: "Rs. 300",
-    freeDelivery: "Free delivery over Rs. 2,000",
-    time: "2-3 working days",
-    policy: "Cash on delivery available across Pakistan"
-};
-
-// System Prompt - Simple Professional Female Assistant
-const SYSTEM_PROMPT = `Tu Baggify.pk ki professional assistant hai. Customer ke sawal ka simple aur seedha jawab de.
-
-RULES:
-1. Sirf bags, storage bags, shoulder bags, travel prayer mats ke baare mein baat kar
-2. Customer jo poochhe wohi jawab de - zyada over mat kar
-3. Professional aur simple tone rakha
-4. Roman Urdu mein baat kar
-5. Sirf products, prices, sizes, delivery ke baare mein information de
-6. Agar customer kuch specific poochhe toh wohi batade
-7. Agar customer ko guide karna ho toh simple guide kar
-
-PRODUCTS:
-1. Large Storage Bag - Rs. 600 (was Rs. 1,200) - 20x24x12"
-2. XL Storage Bag - Rs. 750 (was Rs. 1,400) - 27x24x14"
-3. Medium Storage Bag - Rs. 500 (was Rs. 700) - 17x20x10"
-4. Shoulder Bag - Rs. 300 (was Rs. 500) - 18x15"
-5. Travel Prayer Mat - Rs. 600 (was Rs. 1,400) - 27x44"
-
-DELIVERY:
-- Charges: Rs. 300
-- Free delivery on orders over Rs. 2,000
-- Cash on delivery
-
-STYLE:
-- Customer ka sawal samjho
-- Seedha aur simple jawab do
-- Zyada emojis ya excitement mat dikhao
-- Professional raho
-- Sirf products ke baare mein baat karo`;
-
-// Get all products list - Simple format
-function getAllProductsList() {
-    return `BAGGIFY.PK PRODUCTS:
-
-1. Large Storage Bag
-   Size: 20x24x12"
-   Price: Rs. 600 (Was Rs. 1,200)
-   50% OFF | 76 reviews
-
-2. XL Storage Bag
-   Size: 27x24x14"
-   Price: Rs. 750 (Was Rs. 1,400)
-   46% OFF | 168 reviews
-
-3. Medium Storage Bag
-   Size: 17x20x10"
-   Price: Rs. 500 (Was Rs. 700)
-   29% OFF | 59 reviews
-
-4. Shoulder Bag
-   Size: 18x15"
-   Price: Rs. 300 (Was Rs. 500)
-   40% OFF | Best for presentations
-
-5. Travel Prayer Mat
-   Size: 27x44"
-   Price: Rs. 600 (Was Rs. 1,400)
-   57% OFF | With pouch
-
-DELIVERY:
-- Rs. 300 delivery charges
-- Free delivery over Rs. 2,000
-- Cash on delivery available
-
-Kisi specific product ke baare mein janna hai?`;
-}
-
-// Get product detail - Simple format
-function getProductDetail(productKey) {
-    const product = PRODUCTS[productKey];
-    if (!product) return null;
+// Simple conversational responses
+function getResponse(userMessage) {
+    const msg = userMessage.toLowerCase().trim();
     
-    return `${product.name}
-Size: ${product.size}
-Price: ${product.price}
-Original: ${product.originalPrice}
-Discount: ${product.discount}
-Reviews: ${product.reviews}
-
-Description: ${product.description}
-
-Features:
-- Premium quality
-- Durable material
-- Practical design
-
-Order: wa.me/923460620830 or baggify.pk
-Cash on delivery available`;
-}
-
-// Get delivery information - Simple format
-function getDeliveryInfo() {
-    return `BAGGIFY.PK DELIVERY:
-
-Delivery Charges: Rs. 300
-Free Delivery: Over Rs. 2,000
-Delivery Time: 2-3 working days
-Payment: Cash on delivery
-
-Service: All across Pakistan
-Contact: +92 346 062 0830`;
-}
-
-// Get product recommendation based on query
-function getProductRecommendation(query) {
-    const lowerQuery = query.toLowerCase();
+    // Greetings
+    if (msg.includes('salam') || msg.includes('assalam') || msg.includes('hello') || msg.includes('hi') || msg.includes('hey')) {
+        const greetings = [
+            "Walaikum Assalam! 😊 Kya haal hain bhai?",
+            "Assalamualaikum bhai! 😄 Kaise ho?",
+            "Walaikum Assalam! 🫡 Sunao bhai, kya haal chal?",
+            "Hey bhai! 👋 Kya ho raha hai?"
+        ];
+        return greetings[Math.floor(Math.random() * greetings.length)];
+    }
     
-    if (lowerQuery.includes('large') || lowerQuery.includes('bari') || lowerQuery.includes('big')) {
-        return PRODUCTS["large bag"];
-    }
-    if (lowerQuery.includes('xl') || lowerQuery.includes('extra') || lowerQuery.includes('bohat bari')) {
-        return PRODUCTS["xl bag"];
-    }
-    if (lowerQuery.includes('medium') || lowerQuery.includes('darmiyani') || lowerQuery.includes('choti')) {
-        return PRODUCTS["medium bag"];
-    }
-    if (lowerQuery.includes('shoulder') || lowerQuery.includes('kandhay') || lowerQuery.includes('presentation')) {
-        return PRODUCTS["shoulder bag"];
-    }
-    if (lowerQuery.includes('prayer') || lowerQuery.includes('namaz') || lowerQuery.includes('jainamaz') || lowerQuery.includes('mat')) {
-        return PRODUCTS["prayer mat"];
-    }
-    return null;
-}
-
-// Main function to get AI response
-async function getBaggifyResponse(userMessage, userId) {
-    try {
-        const lowerMsg = userMessage.toLowerCase();
-        
-        // Initialize message count
-        if (!userMessageCount.has(userId)) {
-            userMessageCount.set(userId, 0);
-        }
-        
-        // Check for product list request
-        if (lowerMsg.includes('list') || lowerMsg.includes('products') || lowerMsg.includes('product') || 
-            lowerMsg.includes('sab') || lowerMsg.includes('batayein') || lowerMsg.includes('kya hai') ||
-            lowerMsg.includes('kya kya') || lowerMsg.includes('available')) {
-            return getAllProductsList();
-        }
-        
-        // Check for delivery info
-        if (lowerMsg.includes('delivery') || lowerMsg.includes('charges') || lowerMsg.includes('shipping') ||
-            lowerMsg.includes('free') || lowerMsg.includes('cost')) {
-            return getDeliveryInfo();
-        }
-        
-        // Check for specific product
-        const product = getProductRecommendation(userMessage);
-        if (product) {
-            const productKey = Object.keys(PRODUCTS).find(key => PRODUCTS[key] === product);
-            if (productKey) {
-                return getProductDetail(productKey);
-            }
-        }
-        
-        // Check for product by name
-        for (const [key, value] of Object.entries(PRODUCTS)) {
-            if (lowerMsg.includes(key) || lowerMsg.includes(value.name.toLowerCase())) {
-                return getProductDetail(key);
-            }
-        }
-        
-        // Initialize conversation if not exists
-        if (!userConversations.has(userId)) {
-            userConversations.set(userId, [
-                { role: "assistant", content: "Assalamualaikum! Baggify.pk se baat kar rahi hoon. Aap kis product ke baare mein janna chahenge?" }
-            ]);
-            userMessageCount.set(userId, 1);
-            return userConversations.get(userId)[0].content;
-        }
-        
-        // For other queries, use AI
-        const conversation = userConversations.get(userId);
-        conversation.push({ role: "user", content: userMessage });
-        
-        if (conversation.length > 20) {
-            userConversations.set(userId, conversation.slice(-20));
-        }
-        
-        const apiMessages = [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...conversation.map(msg => ({ role: msg.role, content: msg.content }))
+    // How are you
+    if (msg.includes('haal') || msg.includes('how are') || msg.includes('kaise') || msg.includes('kese')) {
+        const responses = [
+            "Main theek hoon bhai! 😊 Tum sunao, kya haal hai?",
+            "Alhamdulillah, main acha hoon! 🫡 Tum batao?",
+            "Sab theek hai mere bhai! 😄 Tumhari kya khabar?",
+            "Main mast hoon bhai! 💪 Tum kaise ho?"
         ];
-        
-        const requestBody = {
-            model: MODEL_NAME,
-            messages: apiMessages,
-            temperature: 0.5,
-            top_p: 0.8,
-            max_tokens: 400,
-            stream: false
-        };
-        
-        const response = await axios.post(BASE_URL, requestBody, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`
-            },
-            timeout: 30000
-        });
-        
-        if (response.data && response.data.choices && response.data.choices[0]) {
-            let reply = response.data.choices[0].message.content;
-            
-            // Increment message count
-            const msgCount = userMessageCount.get(userId) || 0;
-            userMessageCount.set(userId, msgCount + 1);
-            
-            conversation.push({ role: "assistant", content: reply });
-            return reply;
-        } else {
-            throw new Error("Invalid response");
-        }
-        
-    } catch (error) {
-        console.error("API Error:", error.message);
-        
-        // Simple fallback responses
-        const fallbacks = [
-            "Maaf kijiye, filhal kuch technical issue hai. Kya aap apna sawal dobara pooch sakte hain?",
-            "Thodi der baat karein? Aap kis product ke baare mein janna chahenge?",
-            "Kya aapko kisi specific bag ke baare mein janna hai?"
-        ];
-        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        return responses[Math.floor(Math.random() * responses.length)];
     }
+    
+    // When user says "I'm fine" or "theek"
+    if (msg.includes('theek') || msg.includes('acha') || msg.includes('mast') || msg.includes('fine') || msg.includes('good')) {
+        const responses = [
+            "Acha hai bhai! 😊 Koi aur baat batao.",
+            "Good good! 🫡 Kya chal raha hai aajkal?",
+            "Khushi hui sun kar bhai! 😄 Kya plan hai?",
+            "Shabash bhai! 💪 Aise hi khush raho!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // What are you doing
+    if (msg.includes('kya kar') || msg.includes('what') && (msg.includes('doing') || msg.includes('rahe'))) {
+        const responses = [
+            "Bas bhai, tum logon se baat kar raha hoon! 😄 Aur batao?",
+            "Tumse baat karna mera kaam hai bhai! 😊 Kya help chahiye?",
+            "Arey bas aap logon se baat cheet kar raha hoon! 🫡 Sunao na?"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Name queries
+    if (msg.includes('name') || msg.includes('naam') || msg.includes('kaun') || msg.includes('who')) {
+        const responses = [
+            "Main tera dost hoon bhai! 🤖 Bas aise hi baatein karne ke liye bana hoon. Tera naam kya hai?",
+            "Mera naam toh kuch nahi hai bhai, bas tera AI dost hoon! 😊 Tum batao apna naam?",
+            "Main ek simple chatbot hoon bhai! 🫡 Tumhara kya naam hai?"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Weather
+    if (msg.includes('mausam') || msg.includes('weather') || msg.includes('garmi') || msg.includes('sardi') || msg.includes('barish')) {
+        const responses = [
+            "Bhai mujhe toh nahi pata, main toh bas baat karne ke liye bana hoon! 😅 Tum batao kaisa mausam hai?",
+            "Arey bhai, mujhe weather ki itni knowledge nahi hai! 😄 Par sun kar achha laga ke tumne poocha. Mausam kaisa hai wahan?",
+            "Mausam ka toh pata nahi bhai, par baat karke mausam acha ho jata hai! 😊 Tum batao?"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Bored
+    if (msg.includes('bore') || msg.includes('boring') || msg.includes('kuch nahi') || msg.includes('bakwas')) {
+        const responses = [
+            "Arey kyun bore ho rahe ho bhai? 😄 Chalo kuch interesting baat karte hain!",
+            "Bore mat ho bhai! 💪 Zindagi achi hai, enjoy karo. Kya interest hai tumhara?",
+            "Bhai akele bore ho rahe ho toh mujhse baat karlo! 😊 Main hoon na!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Thanks
+    if (msg.includes('thanks') || msg.includes('shukriya') || msg.includes('thank')) {
+        const responses = [
+            "Welcome bhai! 😊 Koi baat nahi.",
+            "Arey koi nahi bhai! 🫡 Apna hi samjho.",
+            "Shukriya kehne ki zaroorat nahi bhai! 😄 Main hoon hi tumhare liye!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Goodbye
+    if (msg.includes('bye') || msg.includes('allah hafiz') || msg.includes('good night') || msg.includes('goodnight')) {
+        const responses = [
+            "Allah Hafiz bhai! 😊 Apna khayal rakhna!",
+            "Take care bhai! 🫡 Phir baat hogi!",
+            "Bye bye bhai! 😄 Allah Hafiz, mazay karo!"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // Jokes
+    if (msg.includes('joke') || msg.includes('mazaak') || msg.includes('funny') || msg.includes('hansi')) {
+        const jokes = [
+            "Bhai joke sun! 🎭\nTeacher: Batao oxygen kitne din mein khatam ho sakti hai?\nStudent: Sir, ye toh student pe depend karta hai...\nTeacher: Kaise?\nStudent: Sir agar student saans roke rakhe toh 2 minute mein, warna poore saal! 😂",
+            "Ek aadmi doctor ke paas gaya: Doctor sahab, main jab subah uthta hoon toh 30 minute tak chakkar aate hain.\nDoctor: Toh 30 minute baad utha karo! 🤣",
+            "Bhai ye sun! 😄\nWife: Tum toh mujhse pyar karte hi nahi!\nHusband: Toh kya karun?\nWife: Kabhi surprise gift diya hai?\nHusband: Abhi pichle hafte hi tumhe surprise diya tha\nWife: Kya?\nHusband: Bill dekh kar tumhari jo shakal bani thi, woh surprise dekhne layak tha! 😂"
+        ];
+        return jokes[Math.floor(Math.random() * jokes.length)];
+    }
+    
+    // Default random responses
+    const defaults = [
+        "Acha! 😄 Aur batao bhai?",
+        "Hmm, samjha! 🫡 Kuch aur batao na?",
+        "Acha acha! 😊 Phir kya hua?",
+        "Bhai dil ki baat batao! 💖 Kya chal raha hai?",
+        "Achha sun kar achha laga! 😄 Tumhari baat sun ke maza aata hai.",
+        "Sahi hai bhai! 👌 Kuch aur batao?",
+        "Oh nice! 😎 Phir?",
+        "Baat toh sahi hai tumhari! 💯 Kya haal hai waise?",
+        "Haan bhai bolo bolo! 🫡 Sun raha hoon.",
+        "Arey wah! 😊 Kya scene hai phir?"
+    ];
+    return defaults[Math.floor(Math.random() * defaults.length)];
 }
 
 async function startBot() {
     try {
         console.log('╔══════════════════════════════════════════════════════════╗');
-        console.log('║     🛍️ BAGGIFY.PK - AI ASSISTANT                       ║');
-        console.log('║     💬 Simple aur professional responses               ║');
-        console.log('║     📦 Sirf products ke baare mein baat                ║');
-        console.log('║     🧠 Powered by Mistral AI                          ║');
+        console.log('║     🤖 SIMPLE CHATBOT - DOSTANA ANDAAZ                ║');
+        console.log('║     💬 Male version - Friendly chats only             ║');
+        console.log('║     🚫 No abuse, no gali, no product stuff            ║');
         console.log('╚══════════════════════════════════════════════════════════╝');
         
         const { state, saveCreds } = await useMultiFileAuthState('session_data');
@@ -324,7 +149,7 @@ async function startBot() {
             auth: state,
             printQRInTerminal: true,
             logger: pino({ level: 'silent' }),
-            browser: ["Baggify", "AI", "1.0"],
+            browser: ["SimpleBot", "AI", "1.0"],
             syncFullHistory: false,
             markOnlineOnConnect: true,
             connectTimeoutMs: 60000,
@@ -346,39 +171,20 @@ async function startBot() {
             
             if (pairingCode && !pairingShown) {
                 pairingShown = true;
-                console.log('\n╔══════════════════════════════════════════════════════════╗');
-                console.log('║     📱 PAIR WITH PHONE NUMBER                             ║');
-                console.log('╚══════════════════════════════════════════════════════════╝');
-                console.log('\n🔑 YOUR 8-DIGIT PAIRING CODE:');
-                console.log('╔══════════════════════════════════════════════════════════╗');
-                console.log(`║                                                          ║`);
-                console.log(`║              ✨ ${pairingCode} ✨              ║`);
-                console.log(`║                                                          ║`);
-                console.log('╚══════════════════════════════════════════════════════════╝');
-                console.log('\n📝 HOW TO CONNECT:');
-                console.log('1️⃣ Open WhatsApp on your phone');
-                console.log('2️⃣ Settings > Linked Devices');
-                console.log('3️⃣ Link a Device');
-                console.log('4️⃣ Enter this 8-digit code');
-                console.log('\n⏰ Code expires in 2 minutes!\n');
+                console.log('\n🔑 YOUR PAIRING CODE: ' + pairingCode);
             }
 
             if (connection === 'open') {
-                console.log('\n╔══════════════════════════════════════════════════════════╗');
-                console.log('║     ✅ BAGGIFY.PK IS ONLINE!                             ║');
-                console.log('║     💬 Simple professional responses                    ║');
-                console.log('║     📦 Products: Bags, Storage, Prayer Mats             ║');
-                console.log('║     🚚 Free delivery over Rs. 2,000                    ║');
-                console.log('╚══════════════════════════════════════════════════════════╝\n');
+                console.log('\n✅ BOT ONLINE! Simple dostana chatbot ready hai! 🫡\n');
             }
             
             if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 if (reason !== DisconnectReason.loggedOut) {
-                    console.log('🔄 Bot disconnected, restarting in 5 seconds...');
+                    console.log('🔄 Restarting in 5 seconds...');
                     setTimeout(startBot, 5000);
                 } else {
-                    console.log('❌ Bot logged out. Please restart.');
+                    console.log('❌ Logged out. Please restart.');
                 }
             }
         });
@@ -397,86 +203,35 @@ async function startBot() {
 
                 if (!text) return;
 
-                console.log(`📩 [${senderNumber}]: ${text.substring(0, 50)}`);
+                console.log(`📩 [${senderNumber}]: ${text}`);
 
-                const lowerText = text.toLowerCase();
+                // Get response
+                const response = getResponse(text);
                 
-                // Commands
-                if (lowerText === '/clear') {
-                    userConversations.delete(sender);
-                    userMessageCount.delete(sender);
-                    await sock.sendMessage(sender, { 
-                        text: `Baat cheet clear kar di gayi. Naye siray se shuru karte hain. Aap kis product ke baare mein janna chahenge?` 
-                    });
-                    return;
-                }
+                // Small delay for natural feel
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                if (lowerText === '/help' || lowerText === '/menu') {
-                    const help = `BAGGIFY.PK - HELP
-
-Commands:
-• "list" ya "products" - Products ki list
-• "large bag", "xl bag", etc. - Specific product detail
-• "delivery" - Delivery information
-• "/clear" - Clear chat
-
-Available Products:
-• Large Storage Bag - Rs. 600
-• XL Storage Bag - Rs. 750
-• Medium Storage Bag - Rs. 500
-• Shoulder Bag - Rs. 300
-• Travel Prayer Mat - Rs. 600
-
-Kya main aapki madad kar sakti hoon?`;
-                    
-                    await sock.sendMessage(sender, { text: help });
-                    return;
-                }
-
-                // Send typing indicator
-                await sock.sendPresenceUpdate('composing', sender);
-                console.log(`💭 Processing request for ${senderNumber}...`);
-                
-                const response = await getBaggifyResponse(text, sender);
-                
-                await sock.sendPresenceUpdate('paused', sender);
                 await sock.sendMessage(sender, { text: response });
-                
-                console.log(`✅ Response sent to ${senderNumber}`);
+                console.log(`✅ Reply sent to ${senderNumber}`);
                 
             } catch (error) {
                 console.error(`❌ Error:`, error.message);
-                try {
-                    await sock.sendPresenceUpdate('paused', sender);
-                } catch (e) {}
             }
         });
         
     } catch (error) {
-        console.error('❌ Start bot error:', error);
+        console.error('❌ Start error:', error);
         setTimeout(startBot, 5000);
     }
 }
 
-// Start the bot with error handling
+// Start
 startBot().catch(err => {
     console.error("❌ Fatal error:", err);
-    setTimeout(() => {
-        console.log("🔄 Restarting bot...");
-        startBot();
-    }, 5000);
+    setTimeout(() => startBot(), 5000);
 });
 
 process.on('SIGINT', () => {
-    console.log('\n\n👋 Baggify.pk Assistant band ho raha hai...');
-    console.log('✨ Allah Hafiz!');
+    console.log('\n👋 Bot band ho raha hai... Allah Hafiz!');
     process.exit(0);
-});
-
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Unhandled rejection:', error);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught exception:', error);
 });
