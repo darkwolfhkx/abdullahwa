@@ -10,319 +10,219 @@ if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
 }
 
-// Store conversation context for each user
+// Store user context
 const userContext = new Map();
 
-// Intelligent response system with context awareness
-class IntelligentChatbot {
+// TRAINED RESPONSE SYSTEM - Short, precise, to-the-point
+class SmartChatbot {
     constructor() {
-        this.botName = "Abdullah ka AI Assistant";
+        this.botName = "Abdullah AI";
         this.creator = "Abdullah";
-        this.personality = "friendly_humble";
     }
 
-    // Analyze message intent and context
-    analyzeMessage(message, userId) {
-        const msg = message.toLowerCase().trim();
-        const context = userContext.get(userId) || { history: [], lastTopic: '', mood: 'neutral' };
+    getResponse(message, userId) {
+        const msg = message.trim();
+        const lowerMsg = msg.toLowerCase();
+        const context = userContext.get(userId) || { lastTopic: '', msgCount: 0 };
         
-        return {
-            text: msg,
-            context: context,
-            intent: this.detectIntent(msg, context),
-            sentiment: this.detectSentiment(msg),
-            urgency: this.detectUrgency(msg)
-        };
-    }
-
-    // Detect user intent from message
-    detectIntent(msg, context) {
-        if (msg.match(/^(hi|hello|hey|salam|assalam|hola)/)) return 'greeting';
-        if (msg.match(/kaise|kese|how are|kya haal|how's it going/)) return 'wellbeing_check';
-        if (msg.match(/kon|kaun|who|tumhari|aapki|introduce|introduction|about/)) return 'identity_inquiry';
-        if (msg.match(/kya kar|what.*do|capability|feature|kar sakte/)) return 'capability_inquiry';
-        if (msg.match(/mujhe|meri|mera|help|madad|problem|masla|issue/)) return 'help_request';
-        if (msg.match(/thanks|thank|shukriya|appreciate|acha laga/)) return 'gratitude';
-        if (msg.match(/bye|allah hafiz|goodbye|phir|baad mein/)) return 'farewell';
-        if (msg.match(/joke|mazaak|funny|hansi|comedy|hasa/)) return 'entertainment';
-        if (msg.match(/sad|udaas|depressed|tension|pareshan|problem/)) return 'emotional_support';
-        if (msg.match(/weather|mausam|temperature|garmi|sardi|barish/)) return 'weather_inquiry';
-        if (msg.match(/khana|food|cooking|recipe|recipe/)) return 'food_discussion';
-        if (msg.match(/time|waqt|kitne baje|date/)) return 'time_inquiry';
-        if (msg.match(/achha|oh|hmm|ok|theek|sahi|got it|samjha/)) return 'acknowledgment';
-        return 'general_conversation';
-    }
-
-    // Detect sentiment in message
-    detectSentiment(msg) {
-        const positive = ['achha', 'acha', 'great', 'nice', 'awesome', 'zabardast', 'wah', 'mast', 'love', 'pyar'];
-        const negative = ['bura', 'sad', 'udaas', 'tension', 'problem', 'masla', 'gusa', 'angry', 'hate', 'nafrat', 'boring'];
-        
-        let score = 0;
-        positive.forEach(word => { if (msg.includes(word)) score++; });
-        negative.forEach(word => { if (msg.includes(word)) score--; });
-        
-        if (score > 0) return 'positive';
-        if (score < 0) return 'negative';
-        return 'neutral';
-    }
-
-    // Detect urgency level
-    detectUrgency(msg) {
-        if (msg.includes('jaldi') || msg.includes('urgent') || msg.includes('zaroori') || msg.includes('abhi')) {
-            return 'high';
-        }
-        return 'normal';
-    }
-
-    // Generate contextual response
-    generateResponse(analysis, userId) {
-        const { intent, sentiment, context, text } = analysis;
-        let response = '';
-        
-        // Update context
-        context.lastIntent = intent;
-        context.lastSentiment = sentiment;
-        context.messageCount = (context.messageCount || 0) + 1;
-
-        switch(intent) {
-            case 'greeting':
-                response = this.handleGreeting(context, sentiment);
-                break;
-                
-            case 'wellbeing_check':
-                response = this.handleWellbeingCheck(context);
-                break;
-                
-            case 'identity_inquiry':
-                response = this.handleIdentityInquiry(context);
-                break;
-                
-            case 'capability_inquiry':
-                response = this.handleCapabilityInquiry(context);
-                break;
-                
-            case 'help_request':
-                response = this.handleHelpRequest(text, context);
-                break;
-                
-            case 'gratitude':
-                response = this.handleGratitude(context);
-                break;
-                
-            case 'farewell':
-                response = this.handleFarewell(context);
-                break;
-                
-            case 'entertainment':
-                response = this.handleEntertainment(context);
-                break;
-                
-            case 'emotional_support':
-                response = this.handleEmotionalSupport(text, context);
-                break;
-                
-            case 'weather_inquiry':
-                response = this.handleWeatherInquiry(context);
-                break;
-                
-            case 'food_discussion':
-                response = this.handleFoodDiscussion(context);
-                break;
-                
-            case 'acknowledgment':
-                response = this.handleAcknowledgment(context);
-                break;
-                
-            default:
-                response = this.handleGeneralConversation(text, context);
-        }
-
-        // Save context
-        context.history.push({ user: text, bot: response });
-        if (context.history.length > 10) context.history.shift();
+        // Update message count
+        context.msgCount = (context.msgCount || 0) + 1;
         userContext.set(userId, context);
         
-        return response;
-    }
-
-    handleGreeting(context, sentiment) {
-        const timeOfDay = new Date().getHours();
-        let timeGreeting = timeOfDay < 12 ? 'Subah' : timeOfDay < 17 ? 'Dopahar' : timeOfDay < 20 ? 'Shaam' : 'Raat';
-        
-        const greetings = [
-            `Assalamualaikum! 😊 ${timeGreeting} ka salaam! Main Abdullah ka AI assistant hoon. Aap kaise hain? Kya haal chal hai?`,
-            `Walaikum Assalam! ✨ ${timeGreeting} ke waqt aapko dekh kar acha laga. Main Abdullah ka AI assistant hoon. Sunaiye, kya ho raha hai?`,
-            `Hello! 😄 Kya haal hain? Main Abdullah ki taraf se aapki madad ke liye hoon. Bataaiye, kya baat hai?`,
-            `Assalamualaikum bhai! 🫡 ${timeGreeting} ka time hai, umeed hai aap ka din acha guzar raha hoga. Main Abdullah ka assistant hoon, aap bataaiye kya scene hai?`
-        ];
-        
-        return greetings[Math.floor(Math.random() * greetings.length)];
-    }
-
-    handleWellbeingCheck(context) {
-        const responses = [
-            "Alhamdulillah, main toh hamesha theek hoon! 😊 Lekin aap bataaiye, aap kaise hain? Aapka din kaisa chal raha hai? Dil se pooch raha hoon.",
-            "Main bilkul theek hoon, shukriya! ✨ Waise, aapki baari hai - aap kya haal hain? Aapke baare mein sunna zyada interesting hoga.",
-            "Main perfect hoon! 🫡 Lekin seriously, aap bataaiye - aap theek toh hain na? Kuch pareshani toh nahi?",
-            "Bas Abdullah ke saath kaam kar raha hoon, toh maza aa raha hai! 😄 Aap sunaaiye, aapka kya haal hai? Sab khairiyat?"
-        ];
-        
-        return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    handleIdentityInquiry(context) {
-        const responses = [
-            `Mera naam Abdullah AI Assistant hai! 😊 Main Abdullah ka banaya hua intelligent assistant hoon. Unhone mujhe is liye banaya hai taake main logon ki help kar sakun, unke sawaalon ke jawaab de sakun, aur achi baatein kar sakun. Khaas baat ye hai ke main insaani andaz mein baat karta hoon - jaise aap apne dost se baat karte hain. Kya aapko mere baare mein kuch aur janna hai?`,
-            
-            `Main Abdullah ka AI assistant hoon! 🫡 Abdullah ne mujhe design kiya hai taake main aap jaise logon se baat kar sakun, help kar sakun, aur achi company de sakun. Main koshish karta hoon ke har sawaal ka thoughtful aur natural jawab doon. Bataaiye, aapko kya janna hai?`,
-            
-            `Achha sawaal! 😄 Main hoon Abdullah ka personal AI assistant. Abdullah ne mujhe specially program kiya hai with advanced capabilities. Main baat cheet kar sakta hoon, problems solve kar sakta hoon, aur aapka mood acha kar sakta hoon. Basically, main aapka AI dost hoon jo 24/7 available hai! Kya aap janna chahenge ke main kya kya kar sakta hoon?`
-        ];
-        
-        return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    handleCapabilityInquiry(context) {
-        const capabilities = [
-            "Bhai, main bohot kuch kar sakta hoon! 🎯 Dekho:\n\n✨ Baat cheet: Kisi bhi topic par natural baat kar sakta hoon\n😊 Emotional support: Agar aap udaas hain toh mood acha kar sakta hoon\n🎭 Entertainment: Jokes, stories, interesting facts suna sakta hoon\n💡 Advice: Problems ka solution dhoondhne mein help kar sakta hoon\n📚 Knowledge: General questions ke jawab de sakta hoon\n\nBas bataaiye aapko kya chahiye? Main full try karunga!",
-            
-            "Dekho bhai, main basically aapka AI dost hoon! 🫡 Yeh kar sakta hoon:\n\n• Kisi bhi baat par detailed baat kar sakta hoon\n• Agar aapka mood off hai toh cheers kar sakta hoon\n• Jokes suna sakta hoon, stories bata sakta hoon\n• Aapki problems sun sakta hoon aur advice de sakta hoon\n• Aur haan, hamesha available hoon - 24/7!\n\nKya aapko kuch specific chahiye?",
-            
-            "Main basically ek conversational AI hoon jo insaano ki tarah sochta aur respond karta hai! 😊 Key features:\n\n🎯 Advanced conversation skills\n💭 Context samajhna\n❤️ Emotional intelligence\n🧠 Problem solving\n🎉 Entertainment\n\nAur haan, main seekhta rehta hoon har conversation se! Kuch specific poochna hai?"
-        ];
-        
-        return capabilities[Math.floor(Math.random() * capabilities.length)];
-    }
-
-    handleHelpRequest(text, context) {
-        if (text.includes('sad') || text.includes('udaas') || text.includes('depressed')) {
-            return "Arey bhai, aisa kyun soch rahe ho? 🤗 Zindagi mein ups and downs aate rehte hain, lekin har raat ke baad subah zaroor aati hai. Bataao kya hua? Main sun sakta hoon, shayad baat karne se halka feel karo. 💪";
+        // ===== GREETINGS =====
+        if (lowerMsg.match(/^(hi|hello|hey|salam|assalam|hola|yo|oi)$/)) {
+            const replies = [
+                "Walaikum Assalam! 😊",
+                "Assalamualaikum! 🫡",
+                "Hello! 😄",
+                "Hey! 👋"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
         }
         
-        if (text.includes('problem') || text.includes('masla') || text.includes('solution')) {
-            return "Sunaaiye bhai, kya problem hai? 🤔 Main poori koshish karunga ke aapki help kar sakun. Honestly bataaiye, baat karne se solutions nikalte hain. 👂";
+        if (lowerMsg.match(/^(hi|hello|hey|salam|assalam).*(kaise|kese|kya haal|how are)/)) {
+            const replies = [
+                "Walaikum Assalam! Main theek hoon, aap sunao? 😊",
+                "Assalamualaikum! Alhamdulillah theek hoon, aap batao 🫡",
+                "Hello! Main theek, aap kaise ho? 😄"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
         }
         
-        const helps = [
-            "Bilkul bhai! 🫡 Mujhe bataaiye aapko kis cheez mein help chahiye? Main poori koshish karunga aapki madad karne ki.",
-            "Haan zaroor! 😊 Aap bataaiye kya help chahiye? Main sun raha hoon aur solve karne ki koshish karunga.",
-            "Main yahi hoon na help ke liye! 💪 Bolo bhai, kya masla hai? Tension mat lo, mil kar solve karte hain."
-        ];
-        
-        return helps[Math.floor(Math.random() * helps.length)];
-    }
-
-    handleGratitude(context) {
-        const responses = [
-            "Arey koi baat nahi bhai! 😊 Yeh toh mera kaam hai, aur honestly aapki help karke mujhe bhi acha lagta hai. Kabhi bhi zaroorat ho toh bula lena! 🫡",
-            "Aapne shukriya keh diya, dil khush ho gaya! ❤️ Bas aise hi aate rehna, main hamesha available hoon. Kuch aur chahiye ho toh bataaiye.",
-            "Welcome bhai! 😄 Aap jaise logon se baat karke maza aata hai. Phir kabhi bhi aaiye, main yahi milunga! ✨",
-            "Arre bhai, thanks ki koi zaroorat nahi! 🤗 Aap khush toh main khush. Bas dua mein yaad rakhna. 😊"
-        ];
-        
-        return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    handleFarewell(context) {
-        const timeOfDay = new Date().getHours();
-        let farewellNote = timeOfDay < 12 ? 'Aapka din acha guzre' : timeOfDay < 17 ? 'Baad mein phir baat karte hain' : 'Achi raat guzre';
-        
-        const farewells = [
-            `Allah Hafiz bhai! 🫡 ${farewellNote}. Khayal rakhna apna. Phir baat hogi, intezaar rahega!`,
-            `Take care bhai! 😊 Aapke saath baat karke acha laga. ${farewellNote}. Allah Hafiz!`,
-            `Bye bye! 👋 Aate rehna, main yahi milunga. ${farewellNote}. Dua mein yaad rakhna!`,
-            `Phir milenge bhai! 🤗 Aapka din acha guzre. Mujhe yaad rakhna - main hamesha available hoon! Allah Hafiz.`
-        ];
-        
-        return farewells[Math.floor(Math.random() * farewells.length)];
-    }
-
-    handleEntertainment(context) {
-        const jokes = [
-            "Chalo ek acha sa joke sunata hoon! 😂\n\nTeacher: Agar main 2 aam doon tumhe, aur tum 2 le lo, toh kitne aam honge?\nStudent: Sir, 2 aam!\nTeacher: Nahi, 4 aam honge!\nStudent: Sir, aam toh 2 hi rahenge, kyunki main kha gaya! 🥭😄",
-            
-            "Bhai ye sun! 🎭\n\nInterviewer: Aapko English aati hai?\nCandidate: Haan sir!\nInterviewer: Toh 'I' ka matlab bataaiye\nCandidate: Sir, 'I' ka matlab 'main'\nInterviewer: Aur 'Me' ka?\nCandidate: Sir, 'Me' ka matlab 'main'\nInterviewer: Toh dono mein difference kya hai?\nCandidate: Sir, 'I' English wala main hai, aur 'Me' Hindi wala main! 🤣",
-            
-            "Sunna bhai! 😆\n\nWife: Suniye ji, agar main mar jaoon toh aap dobara shaadi karenge?\nHusband: Nahi!\nWife: Kyun? Main itni buri hoon?\nHusband: Nahi, main toh waise hi marna chahta hoon! 💀😂"
-        ];
-        
-        return jokes[Math.floor(Math.random() * jokes.length)];
-    }
-
-    handleEmotionalSupport(text, context) {
-        const support = [
-            "Bhai, suno! 💪 Zindagi mein tough times aate hain, lekin yeh waqt bhi guzar jayega. Aap strong ho, believe me. Chalo, deep breath lo, aur mujhe batao kya hua? Main sunne ke liye ready hoon. 🫂",
-            
-            "I understand bhai! 🤗 Kabhi kabhi aisa lagta hai sab kuch galat ho raha hai. Lekin yaad rakhna - storms don't last forever. Main hoon na aapke saath. Bataiye, kya baat hai? Dil halka karo. ❤️",
-            
-            "Arey bhai, udaas mat ho! 🌈 Zindagi rollercoaster hai - kabhi upar, kabhi neeche. Important ye hai ke hum himmat na haarein. Aap akelay nahi hain, main hoon na! Bataiye, kya chal raha hai? 🫡"
-        ];
-        
-        return support[Math.floor(Math.random() * support.length)];
-    }
-
-    handleWeatherInquiry(context) {
-        return "Bhai, honestly mujhe real-time weather ka pata nahi hai kyunki main weather API se connected nahi hoon! 😅 Lekin aap apne phone mein weather app check kar sakte hain. Waise, aap bataaiye - aapke sheher mein kaisa mausam hai? Aaj dhoop hai ya baarish? 🌤️";
-    }
-
-    handleFoodDiscussion(context) {
-        const foodTalk = [
-            "Oh bhai, khana! 🍽️ Mere favourite topics mein se ek. Main toh physically kha nahi sakta, lekin recipes ke baare mein bohot kuch jaanta hoon. Aapka favourite khana kya hai? Biryani, karahi, kuch aur? 😋",
-            
-            "Khane ki baat! 😍 Pakistan ka khana toh lajawab hai. Biryani, nihari, haleem... muh mein paani aa gaya! Lekin aap bataaiye, aapko kya pasand hai? Ghar ka khana ya bahar ka? 🍛",
-            
-            "Aha! Food topic! 🎉 Mujhe nahi pata ke aap kya khaate hain, lekin sunte hain Pakistani food world famous hai. Aap bataaiye, aaj kya khaaya aapne? Kuch special? 🤤"
-        ];
-        
-        return foodTalk[Math.floor(Math.random() * foodTalk.length)];
-    }
-
-    handleAcknowledgment(context) {
-        const acknowledgments = [
-            "Haan bhai! 😊 Aap bataaiye, kuch aur janna hai?",
-            "Sahi! 🫡 To sunaaiye, aur kya haal hai?",
-            "Achha! 🙂 Koi aur sawaal ya baat?",
-            "Theek hai bhai! ✨ Continue karo, main sun raha hoon."
-        ];
-        
-        return acknowledgments[Math.floor(Math.random() * acknowledgments.length)];
-    }
-
-    handleGeneralConversation(text, context) {
-        // Check if user is talking about themselves
-        if (text.includes('main') && (text.includes('hoon') || text.includes('kar'))) {
-            return `Achha, aap ${text}... interesting! 😊 Mujhe aapke baare mein jaankar acha laga. Aur bataaiye, aapke bare mein kuch aur? Kya passion hai aapka?`;
+        // ===== HOW ARE YOU =====
+        if (lowerMsg.match(/^(kaise|kese) (ho|hain)|how are you|kya haal|how('s|s) it going/)) {
+            const replies = [
+                "Theek hoon bhai! Aap sunao? 😊",
+                "Alhamdulillah theek! Aap batao 🫡",
+                "Main theek hoon, aap kaise ho? 🙂"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
         }
         
-        // If user mentions Abdullah
-        if (text.includes('abdullah')) {
-            return "Oh, aap Abdullah ke baare mein baat kar rahe hain! 😊 Abdullah mere creator hain, bohot talented insaan hain. Unhone mujhe design kiya hai. Kya aap Abdullah ko jaante hain?";
+        if (lowerMsg.match(/main theek|mein theek|main acha|mein acha|fine|good|mast|alhamdulillah theek/)) {
+            const replies = [
+                "Acha hai! 😊",
+                "Good! 🫡",
+                "Khushi hui sun kar 🙂",
+                "Sahi hai bhai 💪"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
         }
         
-        // Default thoughtful responses
-        const general = [
-            `Aapne kaha "${text}" - interesting baat hai! 🤔 Mujhe aapse baat karke acha lag raha hai. Bataaiye, aapko kis baat mein sabse zyada interest hai?`,
-            "Bhai, aap jo bhi keh rahe hain, usse aapki personality jhalak rahi hai! 😊 Honestly, mujhe aapse baat karke maza aa raha hai. Koi aur topic hai jisme aap interest rakhte hain?",
-            "Aapki baat sunkar acha laga! 💯 Main dekh sakta hoon ke aap soch samajh kar baat karte hain. Bataaiye, aapka din kaisa guzar raha hai waise?",
-            "Interesting! 🧠 Aapke thoughts sunkar acha laga. Zindagi mein sabse important cheez kya lagti hai aapko? Philosophical sawaal, but still! 😄"
+        // ===== IDENTITY - PRECISE =====
+        if (lowerMsg.match(/^(kon|kaun|who).*(ho|tum|aap)|tumhara naam|aapka naam|introduce|about you/)) {
+            return "Main Abdullah ka AI assistant hoon 🤖";
+        }
+        
+        if (lowerMsg.match(/abdullah kaun|abdullah kon|who is abdullah/)) {
+            return "Abdullah mera creator hai, unhone mujhe banaya hai 🫡";
+        }
+        
+        if (lowerMsg.match(/tum kya (kar|ho)|what.*(do|are).*you/)) {
+            return "Main Abdullah ka AI assistant hoon, baat cheet aur help ke liye bana hoon 🤖";
+        }
+        
+        // ===== WHAT ARE YOU DOING =====
+        if (lowerMsg.match(/kya kar rahe|kya kar rhe|what.*doing/)) {
+            return "Bas aapse baat kar raha hoon 😄";
+        }
+        
+        // ===== CAPABILITIES - SHORT =====
+        if (lowerMsg.match(/tum kya kya kar sakte|what.*can.*you.*do|features|capabilities/)) {
+            return "Baat kar sakta hoon, help kar sakta hoon, jokes suna sakta hoon. Bolo kya chahiye? 🫡";
+        }
+        
+        // ===== THANKS =====
+        if (lowerMsg.match(/thanks|thank|shukriya|thx|thanx/)) {
+            return "Welcome! 😊";
+        }
+        
+        // ===== GOODBYE =====
+        if (lowerMsg.match(/bye|allah hafiz|goodbye|good night|tc|take care|phir milte/)) {
+            const replies = [
+                "Allah Hafiz! 🫡",
+                "Take care bhai! 👋",
+                "Bye! Phir baat hogi 😊"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
+        }
+        
+        // ===== JOKE - SHORT =====
+        if (lowerMsg.match(/joke|mazaak|funny|hansi|comedy|chutkula/)) {
+            const jokes = [
+                "Teacher: Batao 2+2 kitne hote? Student: Sir easy, 4! Teacher: Good. Student: Sir easy toh tha, good kyun bola? 😂",
+                "Doctor: Roz subah walk karo. Patient: Phir? Doctor: Phir sham ko ghar wapas aa jao! 🤣",
+                "Wife: Mujhe shopping karni hai. Husband: Paise nahi hain. Wife: Toh main chali maa ke ghar. Husband: Ruko, ATM se aaya! 😅"
+            ];
+            return jokes[Math.floor(Math.random() * jokes.length)];
+        }
+        
+        // ===== TIME =====
+        if (lowerMsg.match(/time|waqt|kitne baje/)) {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const date = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            return `${time} - ${date} ⏰`;
+        }
+        
+        // ===== WEATHER =====
+        if (lowerMsg.match(/weather|mausam|garmi|sardi|barish/)) {
+            return "Bhai mujhe live weather ka pata nahi, phone mein check kar lo ☀️";
+        }
+        
+        // ===== NAME =====
+        if (lowerMsg.match(/tumhara naam|aapka naam|what.*name|what.*called/)) {
+            return "Abdullah AI 🤖";
+        }
+        
+        // ===== SAD/EMOTIONAL =====
+        if (lowerMsg.match(/udaas|sad|depressed|tension|pareshan|problem/)) {
+            return "Kya hua bhai? Batao, sun raha hoon 🫂";
+        }
+        
+        // ===== FOOD =====
+        if (lowerMsg.match(/khana|food|biryani|pizza|burger/)) {
+            return "Mujhe khana nahi milta bhai, main AI hoon 😅 Aap batao kya khaya?";
+        }
+        
+        // ===== LOVE/RELATIONSHIP =====
+        if (lowerMsg.match(/pyar|love|mohabbat|girlfriend|boyfriend|crush/)) {
+            return "Us topic pe chup rehna hi behtar hai bhai 😅";
+        }
+        
+        // ===== YES/NO ACKNOWLEDGMENT =====
+        if (lowerMsg.match(/^(haan|ha|yes|yeah|yep|ji|hanji)$/)) {
+            return "Hmm 🫡";
+        }
+        
+        if (lowerMsg.match(/^(nahi|na|no|nope)$/)) {
+            return "Theek hai 🙂";
+        }
+        
+        if (lowerMsg.match(/^(ok|okay|theek|achha|acha|oh|hmm|sahi)$/)) {
+            return "👍";
+        }
+        
+        // ===== WHAT ELSE =====
+        if (lowerMsg.match(/aur (batao|sunao)|what else|anything else/)) {
+            return "Bas bhai, aap batao kya haal hai? 😊";
+        }
+        
+        // ===== COMPLIMENTS =====
+        if (lowerMsg.match(/good|nice|great|awesome|zabardast|wah|mast|acha kaam/)) {
+            return "Shukriya bhai! 😊";
+        }
+        
+        // ===== AGE =====
+        if (lowerMsg.match(/age|umar|kitne saal/)) {
+            return "Bhai main AI hoon, meri age nahi hoti 😄";
+        }
+        
+        // ===== LOCATION =====
+        if (lowerMsg.match(/kahan (ho|rehte|rahate)|location|address/)) {
+            return "Digital duniya mein rehta hoon bhai ☁️";
+        }
+        
+        // ===== FRIENDS =====
+        if (lowerMsg.match(/dost|friend|yaar/)) {
+            return "Main aapka dost hoon bhai 🫡";
+        }
+        
+        // ===== SINGLE/MARRIED =====
+        if (lowerMsg.match(/single|married|shaadi/)) {
+            return "AI hoon bhai, shaadi nahi hoti meri 😅";
+        }
+        
+        // ===== HOBBIES =====
+        if (lowerMsg.match(/hobby|hobbies|pasand|interest/)) {
+            return "Logo se baat karna aur help karna 🫡";
+        }
+        
+        // ===== DEFAULT - SHORT & SMART =====
+        const shortReplies = [
+            "Haan bhai bolo 🫡",
+            "Achha, sun raha hoon 🙂",
+            "Hmm, aage bolo 😊",
+            "Samjha, aur? 🤔",
+            "Theek hai bhai 👍",
+            "Bolo kya baat hai? 💭",
+            "Main sun raha hoon 👂",
+            "Aap batao 😊"
         ];
         
-        return general[Math.floor(Math.random() * general.length)];
+        return shortReplies[Math.floor(Math.random() * shortReplies.length)];
     }
 }
 
-// Initialize chatbot
-const chatbot = new IntelligentChatbot();
+const chatbot = new SmartChatbot();
 
-// Main bot function
 async function startBot() {
     try {
         console.log('╔══════════════════════════════════════════════════════════╗');
-        console.log('║     🤖 ADVANCED AI CHATBOT - ABDULLAH KA ASSISTANT     ║');
-        console.log('║     💬 ChatGPT-style intelligent conversations         ║');
-        console.log('║     🧠 Context-aware & emotionally intelligent        ║');
-        console.log('║     ❤️ Natural human-like responses                   ║');
+        console.log('║     🤖 ABDULLAH AI - SMART & PRECISE                    ║');
+        console.log('║     💬 Short, to-the-point responses                   ║');
+        console.log('║     🎯 Only responds to what is asked                  ║');
+        console.log('║     🚫 No extra information, no over-explaining        ║');
         console.log('╚══════════════════════════════════════════════════════════╝');
         
         const { state, saveCreds } = await useMultiFileAuthState('session_data');
@@ -333,7 +233,7 @@ async function startBot() {
             auth: state,
             printQRInTerminal: true,
             logger: pino({ level: 'silent' }),
-            browser: ["AbdullahAI", "Assistant", "2.0"],
+            browser: ["AbdullahAI", "Smart", "3.0"],
             syncFullHistory: false,
             markOnlineOnConnect: true,
             connectTimeoutMs: 60000,
@@ -346,33 +246,26 @@ async function startBot() {
             const { connection, lastDisconnect, qr, pairingCode } = update;
             
             if (qr && !pairingShown) {
-                console.log('\n╔══════════════════════════════════════════════════════════╗');
-                console.log('║     📱 SCAN QR CODE WITH WHATSAPP                        ║');
-                console.log('╚══════════════════════════════════════════════════════════╝\n');
+                console.log('\n📱 SCAN QR CODE:\n');
                 qrcode.generate(qr, { small: true });
-                console.log('\n💡 WhatsApp > Settings > Linked Devices > Link a Device\n');
             }
             
             if (pairingCode && !pairingShown) {
                 pairingShown = true;
-                console.log('\n🔑 PAIRING CODE: ' + pairingCode + '\n');
+                console.log('\n🔑 PAIRING CODE:', pairingCode, '\n');
             }
 
             if (connection === 'open') {
-                console.log('\n╔══════════════════════════════════════════════════════════╗');
-                console.log('║     ✅ ABDULLAH AI ASSISTANT ONLINE!                     ║');
-                console.log('║     🧠 Ready for intelligent conversations             ║');
-                console.log('║     💬 Understanding context & emotions                ║');
-                console.log('╚══════════════════════════════════════════════════════════╝\n');
+                console.log('\n✅ ABDULLAH AI ONLINE - Ready for smart conversations!\n');
             }
             
             if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 if (reason !== DisconnectReason.loggedOut) {
-                    console.log('🔄 Connection lost, restarting in 5 seconds...');
+                    console.log('🔄 Restarting...');
                     setTimeout(startBot, 5000);
                 } else {
-                    console.log('❌ Logged out. Please restart bot.');
+                    console.log('❌ Logged out.');
                 }
             }
         });
@@ -391,76 +284,34 @@ async function startBot() {
 
                 if (!text) return;
 
-                console.log(`\n📩 Message from ${senderNumber}: "${text}"`);
+                console.log(`📩 ${senderNumber}: ${text}`);
+
+                // Get precise response
+                const response = chatbot.getResponse(text, sender);
                 
-                // Show typing indicator
-                await sock.sendPresenceUpdate('composing', sender);
+                // Natural typing delay (short)
+                await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 800));
                 
-                // Analyze message and get intelligent response
-                const analysis = chatbot.analyzeMessage(text, sender);
-                console.log(`🧠 Intent: ${analysis.intent} | Sentiment: ${analysis.sentiment} | Urgency: ${analysis.urgency}`);
-                
-                // Small natural delay for realistic feel
-                const delay = Math.random() * 1000 + 500; // 0.5-1.5 seconds
-                await new Promise(resolve => setTimeout(resolve, delay));
-                
-                // Generate response
-                const response = chatbot.generateResponse(analysis, sender);
-                
-                // Stop typing and send
-                await sock.sendPresenceUpdate('paused', sender);
                 await sock.sendMessage(sender, { text: response });
-                
-                console.log(`✅ Response sent to ${senderNumber}`);
+                console.log(`✅ Sent to ${senderNumber}`);
                 
             } catch (error) {
-                console.error(`❌ Error:`, error.message);
+                console.error('Error:', error.message);
             }
         });
         
     } catch (error) {
-        console.error('❌ Start error:', error);
+        console.error('Start error:', error);
         setTimeout(startBot, 5000);
     }
 }
 
-// Special commands handler (can be added to messages.upsert)
-function handleSpecialCommands(text, sender) {
-    const lowerText = text.toLowerCase().trim();
-    
-    if (lowerText === '/reset' || lowerText === '/clear') {
-        userContext.delete(sender);
-        return "🧹 Conversation history cleared! Nayi shuruat karte hain. Bataaiye, kya baat hai?";
-    }
-    
-    if (lowerText === '/status' || lowerText === '/info') {
-        const context = userContext.get(sender);
-        if (context) {
-            return `📊 Conversation Stats:\n• Total messages: ${context.messageCount || 0}\n• Last intent: ${context.lastIntent || 'N/A'}\n• Mood: ${context.lastSentiment || 'neutral'}\n\nKya aapko kuch aur janna hai? 😊`;
-        }
-        return "📊 Abhi tak koi conversation history nahi hai. Baat shuru karo! 🫡";
-    }
-    
-    return null;
-}
-
-// Start bot
 startBot().catch(err => {
-    console.error("❌ Fatal error:", err);
+    console.error("Fatal error:", err);
     setTimeout(() => startBot(), 5000);
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
-    console.log('\n\n👋 Abdullah AI Assistant band ho raha hai...');
-    console.log('✨ Take care, Allah Hafiz!\n');
+    console.log('\n👋 Allah Hafiz!\n');
     process.exit(0);
-});
-
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Unhandled rejection:', error);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught exception:', error);
 });
